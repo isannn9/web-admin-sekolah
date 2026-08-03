@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
+import 'dart:convert';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -253,7 +256,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 }
 
 // =========================================================================
-// HALAMAN DASHBOARD UTAMA (MINIMALIS & RAPI)
+// HALAMAN DASHBOARD UTAMA
 // =========================================================================
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -290,10 +293,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 
-  void _kirimFeedbackDialog(
-      String docId, String feedbackLama, BuildContext context) {
+  void _kirimFeedbackDialog(String docId, String feedbackLama,
+      String feedbackFotoLama, BuildContext context) {
     final TextEditingController feedbackController =
         TextEditingController(text: feedbackLama);
+    String currentFeedbackFoto = feedbackFotoLama;
+    bool isProcessingPhoto = false;
 
     showDialog(
       context: context,
@@ -311,7 +316,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
-                      'Tanggapan Admin',
+                      'Tanggapan & Foto Admin',
                       style: TextStyle(
                           color: Colors.white,
                           fontSize: 15,
@@ -322,21 +327,117 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ],
               ),
               content: SizedBox(
-                width: 340,
-                child: TextField(
-                  controller: feedbackController,
-                  maxLines: 3,
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: 'Tuliskan tanggapan atau solusi...',
-                    hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
-                    filled: true,
-                    fillColor: const Color(0xFF0F172A),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.all(12),
+                width: 360,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Catatan / Tanggapan Teks:',
+                          style: TextStyle(color: Colors.grey, fontSize: 11)),
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: feedbackController,
+                        maxLines: 3,
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 13),
+                        decoration: InputDecoration(
+                          hintText: 'Tuliskan tanggapan atau solusi...',
+                          hintStyle:
+                              TextStyle(color: Colors.grey[500], fontSize: 12),
+                          filled: true,
+                          fillColor: const Color(0xFF0F172A),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.all(12),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text('Lampiran Foto Balasan Admin:',
+                          style: TextStyle(color: Colors.grey, fontSize: 11)),
+                      const SizedBox(height: 4),
+                      InkWell(
+                        onTap: isProcessingPhoto
+                            ? null
+                            : () async {
+                                final ImagePicker picker = ImagePicker();
+                                final XFile? image = await picker.pickImage(
+                                  source: ImageSource.gallery,
+                                  maxWidth: 800,
+                                  maxHeight: 800,
+                                  imageQuality: 80,
+                                );
+                                if (image != null) {
+                                  setStateDialog(
+                                      () => isProcessingPhoto = true);
+                                  try {
+                                    Uint8List bytes = await image.readAsBytes();
+                                    String base64String =
+                                        'data:image/jpeg;base64,${base64Encode(bytes)}';
+
+                                    setStateDialog(() {
+                                      currentFeedbackFoto = base64String;
+                                      isProcessingPhoto = false;
+                                    });
+                                  } catch (e) {
+                                    setStateDialog(
+                                        () => isProcessingPhoto = false);
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content:
+                                              Text('Gagal memproses foto: $e'),
+                                          backgroundColor: Colors.redAccent),
+                                    );
+                                  }
+                                }
+                              },
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F172A),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white12),
+                          ),
+                          child: Row(
+                            children: [
+                              isProcessingPhoto
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                          color: Color(0xFF38BDF8),
+                                          strokeWidth: 2),
+                                    )
+                                  : const Icon(
+                                      Icons.add_photo_alternate_rounded,
+                                      color: Color(0xFF38BDF8),
+                                      size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  isProcessingPhoto
+                                      ? 'Memproses gambar...'
+                                      : currentFeedbackFoto.isEmpty
+                                          ? 'Pilih Foto dari Galeri'
+                                          : 'Foto Berhasil Dipilih (Ketuk ganti)',
+                                  style: TextStyle(
+                                    color: currentFeedbackFoto.isEmpty
+                                        ? Colors.grey[400]
+                                        : Colors.tealAccent,
+                                    fontSize: 11,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -356,32 +457,38 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   ),
-                  onPressed: () async {
-                    try {
-                      await FirebaseFirestore.instance
-                          .collection('pengaduan')
-                          .doc(docId)
-                          .update({'feedback': feedbackController.text.trim()});
+                  onPressed: isProcessingPhoto
+                      ? null
+                      : () async {
+                          try {
+                            await FirebaseFirestore.instance
+                                .collection('pengaduan')
+                                .doc(docId)
+                                .update({
+                              'feedback': feedbackController.text.trim(),
+                              'feedback_foto': currentFeedbackFoto,
+                            });
 
-                      if (!context.mounted) return;
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Tanggapan berhasil dikirim!'),
-                          backgroundColor: Colors.teal,
-                          behavior: SnackBarBehavior.floating,
-                          duration: Duration(seconds: 1),
-                        ),
-                      );
-                    } catch (e) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text('Gagal: $e'),
-                            backgroundColor: Colors.redAccent),
-                      );
-                    }
-                  },
+                            if (!context.mounted) return;
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content:
+                                    Text('Tanggapan & foto berhasil dikirim!'),
+                                backgroundColor: Colors.teal,
+                                behavior: SnackBarBehavior.floating,
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          } catch (e) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('Gagal: $e'),
+                                  backgroundColor: Colors.redAccent),
+                            );
+                          }
+                        },
                   child: const Text('Kirim',
                       style:
                           TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
@@ -391,6 +498,136 @@ class _AdminDashboardState extends State<AdminDashboard> {
           },
         );
       },
+    );
+  }
+
+  void _showImageDialog(BuildContext context, String rawData, String title) {
+    final bool isHttpUrl =
+        rawData.startsWith('http://') || rawData.startsWith('https://');
+    final bool isBase64 = rawData.length > 100 && !isHttpUrl;
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon:
+                        const Icon(Icons.close, color: Colors.white, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                  )
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (isHttpUrl)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(
+                    rawData,
+                    height: 300,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const SizedBox(
+                        height: 200,
+                        child: Center(
+                            child: CircularProgressIndicator(
+                                color: Color(0xFF38BDF8))),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) =>
+                        const SizedBox(
+                      height: 150,
+                      child: Center(
+                        child: Text('Gagal memuat gambar dari URL.',
+                            style: TextStyle(
+                                color: Colors.redAccent, fontSize: 12)),
+                      ),
+                    ),
+                  ),
+                )
+              else if (isBase64)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Builder(
+                    builder: (context) {
+                      try {
+                        String cleanBase64 = rawData.contains(',')
+                            ? rawData.split(',').last
+                            : rawData;
+                        Uint8List imageBytes = base64Decode(cleanBase64);
+                        return Image.memory(
+                          imageBytes,
+                          height: 300,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const SizedBox(
+                            height: 150,
+                            child: Center(
+                              child: Text('Format Base64 gambar tidak valid.',
+                                  style: TextStyle(
+                                      color: Colors.redAccent, fontSize: 12)),
+                            ),
+                          ),
+                        );
+                      } catch (e) {
+                        return const SizedBox(
+                          height: 150,
+                          child: Center(
+                            child: Text('Gagal mendecode data Base64 gambar.',
+                                style: TextStyle(
+                                    color: Colors.redAccent, fontSize: 12)),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                )
+              else
+                Container(
+                  height: 150,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: Text(
+                        'Gambar tidak valid atau kosong.',
+                        textAlign: TextAlign.center,
+                        style:
+                            TextStyle(color: Colors.orangeAccent, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -493,7 +730,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // HEADER RINGKAS
                 const Text(
                   'Pusat Kontrol Pengaduan',
                   style: TextStyle(
@@ -503,12 +739,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Kelola dan pantau pengaduan siswa secara real-time.',
+                  'Kelola dan pantau pengaduan & foto siswa secara real-time.',
                   style: TextStyle(color: Colors.grey[400], fontSize: 11),
                 ),
                 const SizedBox(height: 12),
-
-                // KARTU STATISTIK MINIMALIS (2x2 GRID)
+                // Grid Kartu Statistik ATAS kini bisa diklik langsung untuk filter status!
                 GridView.count(
                   crossAxisCount: 2,
                   crossAxisSpacing: 8,
@@ -518,36 +753,32 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   childAspectRatio: 2.6,
                   children: [
                     _buildMetricCard('Total', '$totalLaporan',
-                        Icons.folder_shared, Colors.blue),
+                        Icons.folder_shared, Colors.blue, 'Semua'),
                     _buildMetricCard('Terkirim', '$totalTerkirim',
-                        Icons.hourglass_top, Colors.orange),
-                    _buildMetricCard(
-                        'Diproses', '$totalDiproses', Icons.sync, Colors.amber),
+                        Icons.hourglass_top, Colors.orange, 'Terkirim'),
+                    _buildMetricCard('Diproses', '$totalDiproses', Icons.sync,
+                        Colors.amber, 'Diproses'),
                     _buildMetricCard('Selesai', '$totalSelesai',
-                        Icons.check_circle, Colors.teal),
+                        Icons.check_circle, Colors.teal, 'Selesai'),
                   ],
                 ),
-
                 const SizedBox(height: 12),
-
-                // FILTER CHIPS MINIMALIS
+                // Bagian Filter Horizontal di bawahnya
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
                       _buildFilterChip('Semua', Icons.dashboard_outlined),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       _buildFilterChip('Terkirim', Icons.send_rounded),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       _buildFilterChip('Diproses', Icons.autorenew_rounded),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       _buildFilterChip('Selesai', Icons.verified_rounded),
                     ],
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // DAFTAR LAPORAN KARTU RAPI
                 docs.isEmpty
                     ? Center(
                         child: Padding(
@@ -577,6 +808,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           final dateStr = _formatDateTime(data['timestamp']);
                           String status = data['status'] ?? 'Terkirim';
                           String feedback = data['feedback'] ?? '';
+                          String feedbackFoto = data['feedback_foto'] ?? '';
+
+                          String fotoSiswa = data['image_url'] ??
+                              data['foto_url'] ??
+                              data['imageUrl'] ??
+                              data['foto'] ??
+                              '';
                           String kategori = data['kategori'] ?? 'Pengaduan';
 
                           Color statusColor = status == 'Selesai'
@@ -598,7 +836,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // BARIS KATEGORI & STATUS
                                   Row(
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
@@ -678,13 +915,48 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                         color: Colors.grey[300],
                                         height: 1.3),
                                   ),
+                                  if (fotoSiswa.isNotEmpty) ...[
+                                    const SizedBox(height: 10),
+                                    InkWell(
+                                      onTap: () => _showImageDialog(context,
+                                          fotoSiswa, 'Lampiran Foto Siswa'),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF0F172A),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          border:
+                                              Border.all(color: Colors.white12),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.image,
+                                                color: Color(0xFF38BDF8),
+                                                size: 18),
+                                            const SizedBox(width: 8),
+                                            const Expanded(
+                                              child: Text(
+                                                  'Siswa melampirkan foto. Ketuk untuk melihat.',
+                                                  style: TextStyle(
+                                                      color: Colors.white70,
+                                                      fontSize: 11)),
+                                            ),
+                                            const Icon(Icons.open_in_new,
+                                                color: Colors.grey, size: 14),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 8),
                                   Text(
                                     dateStr,
                                     style: TextStyle(
                                         color: Colors.grey[500], fontSize: 10),
                                   ),
-                                  if (feedback.isNotEmpty) ...[
+                                  if (feedback.isNotEmpty ||
+                                      feedbackFoto.isNotEmpty) ...[
                                     const SizedBox(height: 8),
                                     Container(
                                       padding: const EdgeInsets.all(8),
@@ -706,11 +978,40 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 10),
                                           ),
-                                          const SizedBox(height: 2),
-                                          Text(feedback,
-                                              style: const TextStyle(
-                                                  color: Colors.white70,
-                                                  fontSize: 11)),
+                                          if (feedback.isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(feedback,
+                                                style: const TextStyle(
+                                                    color: Colors.white70,
+                                                    fontSize: 11)),
+                                          ],
+                                          if (feedbackFoto.isNotEmpty) ...[
+                                            const SizedBox(height: 6),
+                                            InkWell(
+                                              onTap: () => _showImageDialog(
+                                                  context,
+                                                  feedbackFoto,
+                                                  'Foto Balasan Admin'),
+                                              child: Row(
+                                                children: [
+                                                  const Icon(
+                                                      Icons.photo_camera_back,
+                                                      color: Colors.tealAccent,
+                                                      size: 14),
+                                                  const SizedBox(width: 6),
+                                                  const Text(
+                                                      'Lihat Foto Balasan / Koreksi Admin',
+                                                      style: TextStyle(
+                                                          color:
+                                                              Colors.tealAccent,
+                                                          fontSize: 11,
+                                                          decoration:
+                                                              TextDecoration
+                                                                  .underline)),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
@@ -720,8 +1021,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                     child: Divider(
                                         color: Color(0xFF334155), height: 1),
                                   ),
-
-                                  // TOMBOL AKSI COMPACT
                                   Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
@@ -730,15 +1029,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                         height: 32,
                                         child: OutlinedButton.icon(
                                           onPressed: () => _kirimFeedbackDialog(
-                                              docId, feedback, context),
+                                              docId,
+                                              feedback,
+                                              feedbackFoto,
+                                              context),
                                           icon: const Icon(
                                               Icons.chat_bubble_outline_rounded,
                                               size: 13,
                                               color: Color(0xFF38BDF8)),
                                           label: Text(
-                                              feedback.isEmpty
-                                                  ? 'Beri Tanggapan'
-                                                  : 'Edit Tanggapan',
+                                              (feedback.isEmpty &&
+                                                      feedbackFoto.isEmpty)
+                                                  ? 'Beri Tanggapan & Foto'
+                                                  : 'Edit Tanggapan / Foto',
                                               style: const TextStyle(
                                                   color: Color(0xFF38BDF8),
                                                   fontSize: 11)),
@@ -828,47 +1131,63 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _buildMetricCard(
-      String title, String count, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(icon, color: color, size: 14),
+  Widget _buildMetricCard(String title, String count, IconData icon,
+      Color color, String targetFilter) {
+    bool isSelected = _selectedFilter == targetFilter;
+    return InkWell(
+      onTap: () {
+        setState(() => _selectedFilter = targetFilter);
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color.withValues(alpha: 0.2)
+              : const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? color : Colors.white.withValues(alpha: 0.04),
+            width: isSelected ? 1.5 : 1.0,
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(title,
-                    style: TextStyle(color: Colors.grey[400], fontSize: 9),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 1),
-                Text(count,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(icon, color: color, size: 14),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(title,
+                      style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.grey[400],
+                          fontSize: 9,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 1),
+                  Text(count,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
