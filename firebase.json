@@ -1,13 +1,16 @@
 {
-  "type": "service_account",
-  "project_id": "pengduanapp",
-  "private_key_id": "45e9d44a27da7e78c42cda16f3347de886034aff",
-  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDcYRLlfp8+MNsS\npJhCCoiC50+Xz8nK1VworjIkddTSYoOnkia663jSk+Mo1yEZGsBvOfbWwA12lgzE\nSVDyx36aiKDF+Md4MZl/ZBUOlQXqcK22+UEoqYLKFzNSlO0lHEBu2VfKgPhsDMZL\nDVuUjXemkYjiGxnnBwI++O5Pm9hE7jFj0gsEvSkhvo9gwfkTaDlVW2mJOKXKc72o\ni2jSyOUnxVfPEh031CsU0Bxji7tQhuoam8Sy6lMNbibOALqgIvDWa3rjD05a4DsV\nFKWbt6QXynvkWMD+LwwHQsTfye5kcL6yV0eO/Zn6WaVgnnrneMkLxVkpXrewtuuu\nwMJeOHU3AgMBAAECggEAAV5mV16Dz+rAs0cBiUxn6udeit1/y/g4mBQWmMmhdYC2\n7FHV3u/4yNbjHIhmSnXx1zgzsFaTHMoZqeawX97sbxRh8pFXGZsCXV9moaeC/vrE\nI1B5C56mgAIaSPgFUJ3XAYugwWLdrZMO/hoV94GoqYB1xazNX6NjRZD7jjCDPluJ\nVWdhiTd/HlnSfGIWq+ut6QLMTWeC5ZBd7ITXddMlfCU+Mu3JMlz/9Nx4OBqh3S48\nB5W0VobGg1hpJmHy4nW3yfHP8yUejapjdc49eiYNlFwA36BkfkV6la1givqKd+Q5\nsw2lKSbdkQSZIHQnftLUQpeb+a96Y2nk2T2rGz4ZGQKBgQD3NWj4FVJpFVWUHVUT\nl6/ZtLSdDTxGP9/UVH4APEDVoudAa3XpNVArF8zyr+nsNIEe+0vzGnRyfHXhLsGg\nweM4P4hHr2gbX9MlvQAwgx0mN14XavqOa65b6EONsiSKZLxCmZiJEybd2slx0ifg\nMOdn1rp2RzylxeQSC6A/ht9D4wKBgQDkN2iF5MxlywaLGt3GQjaxiu392ttb9heg\nML0zNIhOskttr1TvXOrV9uIgjJ/+8f8eIkaYDrG79YMglBPs0tSNrF/qFfTXLBO4\nxQvE2+7mEpkxtdGGCvdnoSDnw2X9Q+3GDfGUTKOwHPiGjjumqc/fMidreDAuXgwo\njmwEpLtRnQKBgQCbxTvvlv/m11qlihYh0mMse4GTtNNWMMmJsfPzkgQImi29mfki\nikWJ4eVyxwZPoIX8T7z74p+dxG9DBYNdGM9kkiP9h7nCBg+2p/GGoBeuDRVtDCv1\nskScBS8MCkScL/2wubg0J61F/qcQ4aveyPIHrHayMRE2JAwiktDXNtVYoQKBgQCk\n5vCMxy12ZERfIVOcnV2d3lBnfMvCYEjkBDPCGzRfAPAF2ooZx18cqh7s/A/kDQKV\nyJiP6RY+RYGxea4IErNph2Nq5uCa1guOGDuPzIeMEWZGiCVUoPnyFHiNXyCD56CY\n2pxz1wj0CYr+1yl9HPjKQxg+zIKsDmLkrzyYAlwj9QKBgQD1aaGvBp8IwR+P2dZm\ne+zE2DyVaLJzkT/pgUALb7g5nSsDEhlKt5K2wtGvspa7HPQ0U3T1UFnWGH1RTm/F\n7wIKUQbp89db7xjheJNpyveiqp8CcT6RESB4RwlCudKtSF/4BfqxeUV5Fx4oMeza\nx8Rw2M2c3yaJu09m8/3bXmiD6Q==\n-----END PRIVATE KEY-----\n",
-  "client_email": "firebase-adminsdk-fbsvc@pengduanapp.iam.gserviceaccount.com",
-  "client_id": "113056105389714243554",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40pengduanapp.iam.gserviceaccount.com",
-  "universe_domain": "googleapis.com"
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
 }
