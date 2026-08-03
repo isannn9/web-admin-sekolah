@@ -7,7 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:intl/intl.dart';
-import 'package:universal_html/html.dart' as html;
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,7 +38,7 @@ class AdminApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Roboto',
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2563EB), // Biru Cerah Modern
+          seedColor: const Color(0xFF2563EB),
           primary: const Color(0xFF2563EB),
           surface: const Color(0xFFF8FAFC),
         ),
@@ -63,7 +64,7 @@ class AdminApp extends StatelessWidget {
 }
 
 // =========================================================================
-// HALAMAN LOGIN ADMIN (Tema Cerah & Elegan)
+// HALAMAN LOGIN ADMIN
 // =========================================================================
 class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key});
@@ -257,7 +258,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 }
 
 // =========================================================================
-// HALAMAN DASHBOARD UTAMA (Modern, Cerah, Rapi Total)
+// HALAMAN DASHBOARD UTAMA
 // =========================================================================
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -268,7 +269,7 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   String _selectedFilter = 'Semua';
-  String _selectedReportFilter = 'Semua'; // 'Semua', 'Minggu Ini', 'Bulan Ini'
+  String _selectedReportFilter = 'Semua';
 
   void _updateStatus(String docId, String statusBaru, BuildContext context) async {
     try {
@@ -540,12 +541,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
     if (timestamp == null) return 'Baru saja';
     if (timestamp is Timestamp) {
       DateTime dt = timestamp.toDate().toLocal();
-      return "${dt.day} ${DateFormat('MMMM yyyy', 'id_ID').format(dt)} | ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+      return "${dt.day} ${DateFormat('MMMM yyyy').format(dt)} | ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
     }
     return 'Baru saja';
   }
 
-  // FITUR CETAK LAPORAN PROFESIONAL (WEB PRINT FRIENDLY)
   void _cetakLaporan(List<QueryDocumentSnapshot> listDocs, String judulLaporan) {
     if (listDocs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -554,7 +554,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       return;
     }
 
-    // Bangun template HTML khusus cetak rapi
     String htmlContent = '''
       <html>
         <head>
@@ -563,7 +562,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             body { font-family: Arial, sans-serif; color: #1e293b; padding: 20px; }
             h2 { text-align: center; margin-bottom: 5px; color: #0f172a; }
             p.subtitle { text-align: center; color: #64748B; margin-top: 0; margin-bottom: 25px; font-size: 14px; }
-            table { width: 100%__; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
             th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; vertical-align: top; }
             th { background-color: #2563eb; color: white; }
             tr:nth-child(even) { background-color: #f8fafc; }
@@ -631,7 +630,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       </html>
     ''';
 
-    // Buka jendela baru / print popup untuk web
     final blob = html.Blob([htmlContent], 'text/html');
     final url = html.Url.createObjectUrlFromBlob(blob);
     html.window.open(url, '_blank');
@@ -641,7 +639,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
-      // APPBAR ATAS MODERN
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -708,13 +705,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
           final allDocs = snapshot.hasData ? snapshot.data!.docs : [];
 
-          // 1. Hitung Statistik Utama
           int totalLaporan = allDocs.length;
           int totalTerkirim = allDocs.where((d) => (d.data() as Map)['status'] == 'Terkirim' || (d.data() as Map)['status'] == null).length;
           int totalDiproses = allDocs.where((d) => (d.data() as Map)['status'] == 'Diproses').length;
           int totalSelesai = allDocs.where((d) => (d.data() as Map)['status'] == 'Selesai').length;
 
-          // 2. Filter Berdasarkan Waktu Laporan (Minggu Ini / Bulan Ini)
           DateTime now = DateTime.now();
           List<QueryDocumentSnapshot> reportFilteredDocs = allDocs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
@@ -723,18 +718,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
             if (dt == null) return false;
 
             if (_selectedReportFilter == 'Minggu Ini') {
-              // Hitung selisih hari dalam minggu berjalan
               DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
               DateTime startOfWeekClean = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
               return dt.isAfter(startOfWeekClean.subtract(const Duration(seconds: 1)));
             } else if (_selectedReportFilter == 'Bulan Ini') {
               return dt.year == now.year && dt.month == now.month;
             }
-            return true; // 'Semua'
+            return true;
           }).toList();
 
-          // 3. Filter Berdasarkan Status Kartu / Pilihan Status
-          final docs = reportFilteredDocs.where((doc) {
+          final List<QueryDocumentSnapshot> docs = reportFilteredDocs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
             String status = data['status'] ?? 'Terkirim';
             if (_selectedFilter == 'Semua') return true;
@@ -746,7 +739,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // HEADER SELAMAT DATANG & KONTROL LAPORAN
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
@@ -773,13 +765,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       const SizedBox(height: 20),
                       const Divider(color: Color(0xFFE2E8F0), height: 1),
                       const SizedBox(height: 20),
-
-                      // DROPDOWN PERIODE LAPORAN & TOMBOL CETAK
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
                         alignment: WrapAlignment.spaceBetween,
-                        crossAxisAlignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Row(
                             mainAxisSize: MainAxisSize.min,
@@ -811,11 +801,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               ),
                             ],
                           ),
-
-                          // TOMBOL CETAK LAPORAN
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF10B981), // Hijau Bagus untuk Cetak
+                              backgroundColor: const Color(0xFF10B981),
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -831,8 +819,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // KARTU STATISTIK (DAPAT DIKLIK UNTUK FILTER STATUS)
                 LayoutBuilder(
                   builder: (context, constraints) {
                     int crossAxis = constraints.maxWidth > 800 ? 4 : 2;
@@ -853,8 +839,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   },
                 ),
                 const SizedBox(height: 24),
-
-                // BAR FILTER STATUS CHIPS
                 Row(
                   children: [
                     const Text('Status Filter:', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF475569), fontSize: 13)),
@@ -878,15 +862,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ],
                 ),
                 const SizedBox(height: 20),
-
-                // DAFTAR KARTU PENGADUAN SISWA
                 docs.isEmpty
                     ? Center(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 50),
                           child: Column(
                             children: [
-                              Icon(Icons.inbox_rounded, size: 64, color: const Color(0xFF94A3B8)),
+                              const Icon(Icons.inbox_rounded, size: 64, color: Color(0xFF94A3B8)),
                               const SizedBox(height: 12),
                               Text(
                                 'Tidak ada data pengaduan untuk filter status "$_selectedFilter" ($_selectedReportFilter).',
@@ -936,7 +918,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // BARIS ATAS: KATEGORI & STATUS BADGE
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
@@ -1008,15 +989,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                           borderRadius: BorderRadius.circular(10),
                                           border: Border.all(color: const Color(0xFFE2E8F0)),
                                         ),
-                                        child: Row(
+                                        child: const Row(
                                           children: [
-                                            const Icon(Icons.image_rounded, color: Color(0xFF2563EB), size: 20),
-                                            const SizedBox(width: 10),
-                                            const Expanded(
+                                            Icon(Icons.image_rounded, color: Color(0xFF2563EB), size: 20),
+                                            SizedBox(width: 10),
+                                            Expanded(
                                               child: Text('Siswa melampirkan foto bukti. Ketuk untuk memperbesar.',
                                                   style: TextStyle(color: Color(0xFF1E293B), fontSize: 12, fontWeight: FontWeight.w500)),
                                             ),
-                                            const Icon(Icons.open_in_new_rounded, color: Color(0xFF94A3B8), size: 16),
+                                            Icon(Icons.open_in_new_rounded, color: Color(0xFF94A3B8), size: 16),
                                           ],
                                         ),
                                       ),
@@ -1027,8 +1008,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                     dateStr,
                                     style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
                                   ),
-
-                                  // KOTAK TANGGAPAN ADMIN (JIKA ADA)
                                   if (feedback.isNotEmpty || feedbackFoto.isNotEmpty) ...[
                                     const SizedBox(height: 12),
                                     Container(
@@ -1053,11 +1032,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                             const SizedBox(height: 8),
                                             InkWell(
                                               onTap: () => _showImageDialog(context, feedbackFoto, 'Foto Balasan Admin'),
-                                              child: Row(
+                                              child: const Row(
                                                 children: [
-                                                  const Icon(Icons.photo_camera_back_rounded, color: Colors.teal, size: 16),
-                                                  const SizedBox(width: 6),
-                                                  const Text(
+                                                  Icon(Icons.photo_camera_back_rounded, color: Colors.teal, size: 16),
+                                                  SizedBox(width: 6),
+                                                  Text(
                                                     'Lihat Lampiran Foto Balasan Admin',
                                                     style: TextStyle(color: Colors.teal, fontSize: 12, fontWeight: FontWeight.bold, decoration: TextDecoration.underline),
                                                   ),
@@ -1069,18 +1048,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                       ),
                                     ),
                                   ],
-
                                   const Padding(
                                     padding: EdgeInsets.symmetric(vertical: 12),
                                     child: Divider(color: Color(0xFFF1F5F9), height: 1),
                                   ),
-
-                                  // AKSI ADMIN (TANGGAPAN & UBAH STATUS)
                                   Wrap(
                                     spacing: 12,
                                     runSpacing: 10,
                                     alignment: WrapAlignment.spaceBetween,
-                                    crossAxisAlignment: WrapAlignment.center,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
                                     children: [
                                       OutlinedButton.icon(
                                         onPressed: () => _kirimFeedbackDialog(docId, feedback, feedbackFoto, context),
@@ -1095,8 +1071,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                         ),
                                       ),
-
-                                      // TOMBOL PILIHAN STATUS CEPAT
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
