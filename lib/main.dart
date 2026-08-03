@@ -252,6 +252,8 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   String _selectedFilter = 'Semua';
+  String _selectedTimeFilter = 'Semua Waktu';
+  String _searchQuery = '';
 
   void _updateStatus(String docId, String statusBaru, BuildContext context) async {
     try {
@@ -618,6 +620,29 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 const SizedBox(height: 8),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    final filtered = allDocs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final ts = data['timestamp'];
+                      if (ts is Timestamp) {
+                        final dt = ts.toDate();
+                        final now = DateTime.now();
+                        return dt.year == now.year && dt.month == now.month && dt.day == now.day;
+                      }
+                      return false;
+                    }).toList();
+                    _printHtmlReport('Laporan Hari Ini', filtered);
+                  },
+                  icon: const Icon(Icons.today, size: 16),
+                  label: const Text('Cetak Laporan Hari Ini', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.amber,
                     foregroundColor: const Color(0xFF0F172A),
                   ),
@@ -750,7 +775,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(width: 8),
             const Expanded(
               child: Text(
-                'ADMIN DASHBOARD',
+                'DASHBOARD ADMIN ASPIRASI',
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: Colors.white,
@@ -796,11 +821,42 @@ class _AdminDashboardState extends State<AdminDashboard> {
           int totalDiproses = allDocs.where((d) => (d.data() as Map)['status'] == 'Diproses').length;
           int totalSelesai = allDocs.where((d) => (d.data() as Map)['status'] == 'Selesai').length;
 
+          // Filter Berdasarkan Status (Semua / Terkirim / Diproses / Selesai) & Waktu & Search (NIS/Nama)
           final docs = allDocs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
             String status = data['status'] ?? 'Terkirim';
-            if (_selectedFilter == 'Semua') return true;
-            return status.toLowerCase() == _selectedFilter.toLowerCase();
+            
+            // 1. Filter Status Utama dari Kotak Metrik
+            bool matchStatus = (_selectedFilter == 'Semua') || (status.toLowerCase() == _selectedFilter.toLowerCase());
+
+            // 2. Filter Waktu (Semua Waktu, Hari Ini, Minggu Ini, Bulan Ini)
+            bool matchTime = true;
+            final ts = data['timestamp'];
+            if (_selectedTimeFilter != 'Semua Waktu' && ts is Timestamp) {
+              final dt = ts.toDate();
+              final now = DateTime.now();
+              if (_selectedTimeFilter == 'Hari Ini') {
+                matchTime = (dt.year == now.year && dt.month == now.month && dt.day == now.day);
+              } else if (_selectedTimeFilter == 'Minggu Ini') {
+                final diff = now.difference(dt).inDays;
+                matchTime = (diff <= 7);
+              } else if (_selectedTimeFilter == 'Bulan Ini') {
+                matchTime = (dt.month == now.month && dt.year == now.year);
+              }
+            } else if (_selectedTimeFilter != 'Semua Waktu' && ts == null) {
+              matchTime = false;
+            }
+
+            // 3. Filter Pencarian NIS atau Nama Siswa
+            bool matchSearch = true;
+            if (_searchQuery.isNotEmpty) {
+              final nama = (data['nama'] ?? '').toString().toLowerCase();
+              final nis = (data['nis'] ?? '').toString().toLowerCase();
+              final query = _searchQuery.toLowerCase();
+              matchSearch = nama.contains(query) || nis.contains(query);
+            }
+
+            return matchStatus && matchTime && matchSearch;
           }).toList();
 
           return LayoutBuilder(
@@ -822,42 +878,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Pusat Kontrol Pengaduan',
-                                    style: TextStyle(
-                                        fontSize: isDesktop ? 24 : 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Kelola dan pantau pengaduan & foto siswa secara real-time.',
-                                    style: TextStyle(color: Colors.grey[400], fontSize: isDesktop ? 13 : 11),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF38BDF8),
-                                foregroundColor: const Color(0xFF0F172A),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              ),
-                              onPressed: () => _showCetakDialog(allDocs),
-                              icon: const Icon(Icons.print_rounded, size: 16),
-                              label: const Text('Cetak Laporan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
+                        // KOTAK METRIK UTAMA (Mirip Referensi Gambar Teman)
                         GridView.count(
                           crossAxisCount: metricColumns,
                           crossAxisSpacing: 10,
@@ -866,28 +887,84 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           physics: const NeverScrollableScrollPhysics(),
                           childAspectRatio: metricAspectRatio,
                           children: [
-                            _buildMetricCard('Total', '$totalLaporan', Icons.folder_shared, Colors.blue, 'Semua', isDesktop),
-                            _buildMetricCard('Terkirim', '$totalTerkirim', Icons.hourglass_top, Colors.orange, 'Terkirim', isDesktop),
-                            _buildMetricCard('Diproses', '$totalDiproses', Icons.sync, Colors.amber, 'Diproses', isDesktop),
+                            _buildMetricCard('Total Laporan', '$totalLaporan', Icons.folder_shared, Colors.blue, 'Semua', isDesktop),
+                            _buildMetricCard('Menunggu', '$totalTerkirim', Icons.hourglass_top, Colors.orange, 'Terkirim', isDesktop),
+                            _buildMetricCard('Diproses', '$totalDiproses', Icons.sync, Colors.purple, 'Diproses', isDesktop),
                             _buildMetricCard('Selesai', '$totalSelesai', Icons.check_circle, Colors.teal, 'Selesai', isDesktop),
                           ],
                         ),
-                        const SizedBox(height: 14),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
+                        const SizedBox(height: 16),
+
+                        // CONTAINER FILTER WAKTU & CETAK LAPORAN
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E293B),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildFilterChip('Semua', Icons.dashboard_outlined),
-                              const SizedBox(width: 8),
-                              _buildFilterChip('Terkirim', Icons.send_rounded),
-                              const SizedBox(width: 8),
-                              _buildFilterChip('Diproses', Icons.autorenew_rounded),
-                              const SizedBox(width: 8),
-                              _buildFilterChip('Selesai', Icons.verified_rounded),
+                              const Text(
+                                'Filter Detail Laporan Berdasarkan Waktu:',
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                              const SizedBox(height: 10),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.teal.shade700,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                                onPressed: () => _showCetakDialog(allDocs),
+                                icon: const Icon(Icons.print_rounded, size: 16),
+                                label: const Text('Cetak Laporan (Semua)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              ),
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _buildTimeFilterChip('Semua Waktu', Icons.all_inclusive),
+                                  _buildTimeFilterChip('Hari Ini', Icons.today),
+                                  _buildTimeFilterChip('Laporan Minggu Ini', Icons.date_range),
+                                  _buildTimeFilterChip('Laporan Bulan Ini', Icons.calendar_month),
+                                ],
+                              ),
                             ],
                           ),
                         ),
                         const SizedBox(height: 14),
+
+                        // KOTAK PENCARIAN BERDASARKAN NIS ATAU NAMA SISWA
+                        TextField(
+                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                          onChanged: (val) {
+                            setState(() {
+                              _searchQuery = val;
+                            });
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Cari berdasarkan NIS atau Nama Siswa...',
+                            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+                            prefixIcon: const Icon(Icons.search, color: Color(0xFF38BDF8), size: 20),
+                            filled: true,
+                            fillColor: const Color(0xFF1E293B),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
                         docs.isEmpty
                             ? Center(
                                 child: Padding(
@@ -897,7 +974,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                       Icon(Icons.inbox_rounded, size: 48, color: Colors.grey[700]),
                                       const SizedBox(height: 8),
                                       Text(
-                                        'Tidak ada data untuk status "$_selectedFilter".',
+                                        'Tidak ada data laporan ditemukan.',
                                         style: TextStyle(color: Colors.grey[400], fontSize: 12),
                                       ),
                                     ],
@@ -946,6 +1023,32 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
+  Widget _buildTimeFilterChip(String label, IconData icon) {
+    bool isSelected = _selectedTimeFilter == label;
+    return ChoiceChip(
+      label: Text(label),
+      avatar: Icon(icon, size: 12, color: isSelected ? const Color(0xFF0F172A) : Colors.grey[400]),
+      selected: isSelected,
+      selectedColor: const Color(0xFF38BDF8),
+      backgroundColor: const Color(0xFF0F172A),
+      labelStyle: TextStyle(
+        color: isSelected ? const Color(0xFF0F172A) : Colors.grey[300],
+        fontWeight: FontWeight.bold,
+        fontSize: 11,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(
+          color: isSelected ? const Color(0xFF38BDF8) : Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      onSelected: (selected) {
+        setState(() => _selectedTimeFilter = label);
+      },
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
   Widget _buildReportCard(BuildContext context, String docId, Map<String, dynamic> data, bool isDesktop) {
     final dateStr = _formatDateTime(data['timestamp']);
     String status = data['status'] ?? 'Terkirim';
@@ -958,7 +1061,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     Color statusColor = status == 'Selesai'
         ? Colors.teal
         : status == 'Diproses'
-            ? Colors.amber
+            ? Colors.purple
             : Colors.orange;
 
     return Container(
@@ -1130,7 +1233,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       const SizedBox(width: 4),
                       _buildStatusActionButton(docId, 'Terkirim', status == 'Terkirim', Colors.orange, context),
                       const SizedBox(width: 3),
-                      _buildStatusActionButton(docId, 'Diproses', status == 'Diproses', Colors.amber, context),
+                      _buildStatusActionButton(docId, 'Diproses', status == 'Diproses', Colors.purple, context),
                       const SizedBox(width: 3),
                       _buildStatusActionButton(docId, 'Selesai', status == 'Selesai', Colors.teal, context),
                     ],
@@ -1218,32 +1321,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildFilterChip(String label, IconData icon) {
-    bool isSelected = _selectedFilter == label;
-    return ChoiceChip(
-      label: Text(label),
-      avatar: Icon(icon, size: 12, color: isSelected ? const Color(0xFF0F172A) : Colors.grey[400]),
-      selected: isSelected,
-      selectedColor: const Color(0xFF38BDF8),
-      backgroundColor: const Color(0xFF1E293B),
-      labelStyle: TextStyle(
-        color: isSelected ? const Color(0xFF0F172A) : Colors.grey[300],
-        fontWeight: FontWeight.bold,
-        fontSize: 11,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(
-          color: isSelected ? const Color(0xFF38BDF8) : Colors.white.withValues(alpha: 0.06),
-        ),
-      ),
-      onSelected: (selected) {
-        setState(() => _selectedFilter = label);
-      },
-      visualDensity: VisualDensity.compact,
     );
   }
 }
