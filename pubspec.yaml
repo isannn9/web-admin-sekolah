@@ -11,10 +11,12 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Versi dikunci tanpa tanda ^ agar aman dari error PromiseJsImpl pada Flutter Web
+  # Versi disesuaikan agar kompatibel total
   firebase_core: 2.15.0
   cloud_firestore: 4.8.0
   firebase_auth: 4.7.0
+  image_picker: 1.0.4
+  firebase_storage: 11.2.5
 
 dev_dependencies:
   flutter_test:
