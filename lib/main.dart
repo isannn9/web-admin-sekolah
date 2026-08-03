@@ -290,11 +290,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
             return AlertDialog(
               backgroundColor: const Color(0xFF1E293B),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Row(
+              title: const Row(
                 children: [
-                  const Icon(Icons.rate_review_rounded, color: Color(0xFF38BDF8), size: 20),
-                  const SizedBox(width: 8),
-                  const Expanded(
+                  Icon(Icons.rate_review_rounded, color: Color(0xFF38BDF8), size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
                     child: Text(
                       'Tanggapan & Foto Admin',
                       style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
@@ -787,7 +787,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             );
           }
 
-          final allDocs = snapshot.hasData ? snapshot.data!.docs : [];
+          final allDocs = snapshot.hasData ? snapshot.data!.docs : <QueryDocumentSnapshot>[];
 
           int totalLaporan = allDocs.length;
           int totalTerkirim = allDocs
@@ -1043,14 +1043,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.white12),
                   ),
-                  child: Row(
+                  child: const Row(
                     children: [
-                      const Icon(Icons.image, color: Color(0xFF38BDF8), size: 18),
-                      const SizedBox(width: 8),
-                      const Expanded(
+                      Icon(Icons.image, color: Color(0xFF38BDF8), size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
                         child: Text('Siswa melampirkan foto. Ketuk untuk melihat.', style: TextStyle(color: Colors.white70, fontSize: 11)),
                       ),
-                      const Icon(Icons.open_in_new, color: Colors.grey, size: 14),
+                      Icon(Icons.open_in_new, color: Colors.grey, size: 14),
                     ],
                   ),
                 ),
@@ -1085,11 +1085,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       const SizedBox(height: 6),
                       InkWell(
                         onTap: () => _showImageDialog(context, feedbackFoto, 'Foto Balasan Admin'),
-                        child: Row(
+                        child: const Row(
                           children: [
-                            const Icon(Icons.photo_camera_back, color: Colors.tealAccent, size: 14),
-                            const SizedBox(width: 6),
-                            const Text('Lihat Foto Balasan / Koreksi Admin',
+                            Icon(Icons.photo_camera_back, color: Colors.tealAccent, size: 14),
+                            SizedBox(width: 6),
+                            Text('Lihat Foto Balasan / Koreksi Admin',
                                 style: TextStyle(color: Colors.tealAccent, fontSize: 11, decoration: TextDecoration.underline)),
                           ],
                         ),
