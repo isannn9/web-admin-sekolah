@@ -17,10 +17,6 @@ dependencies:
   firebase_auth: 4.7.0
   image_picker: 1.0.4
   firebase_storage: 11.2.5
-  
-  # Package tambahan untuk fitur Cetak PDF Rekapitulasi Laporan
-  pdf: ^3.11.1
-  printing: ^5.13.2
 
 dev_dependencies:
   flutter_test:
