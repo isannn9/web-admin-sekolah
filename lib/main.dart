@@ -725,383 +725,403 @@ class _AdminDashboardState extends State<AdminDashboard> {
             return status.toLowerCase() == _selectedFilter.toLowerCase();
           }).toList();
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(14.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Pusat Kontrol Pengaduan',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Kelola dan pantau pengaduan & foto siswa secara real-time.',
-                  style: TextStyle(color: Colors.grey[400], fontSize: 11),
-                ),
-                const SizedBox(height: 12),
-                // Grid Kartu Statistik ATAS kini bisa diklik langsung untuk filter status!
-                GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  childAspectRatio: 2.6,
-                  children: [
-                    _buildMetricCard('Total', '$totalLaporan',
-                        Icons.folder_shared, Colors.blue, 'Semua'),
-                    _buildMetricCard('Terkirim', '$totalTerkirim',
-                        Icons.hourglass_top, Colors.orange, 'Terkirim'),
-                    _buildMetricCard('Diproses', '$totalDiproses', Icons.sync,
-                        Colors.amber, 'Diproses'),
-                    _buildMetricCard('Selesai', '$totalSelesai',
-                        Icons.check_circle, Colors.teal, 'Selesai'),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // Bagian Filter Horizontal di bawahnya
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildFilterChip('Semua', Icons.dashboard_outlined),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Terkirim', Icons.send_rounded),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Diproses', Icons.autorenew_rounded),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Selesai', Icons.verified_rounded),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                docs.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 30),
-                          child: Column(
+          // ==========================================================
+          // RESPONSIVE: tentukan ukuran layar sekali di sini
+          // ==========================================================
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final double screenWidth = constraints.maxWidth;
+              final bool isDesktop = screenWidth >= 900;
+              final bool isTablet = screenWidth >= 600 && screenWidth < 900;
+
+              // Kolom kartu statistik: 2 (mobile) / 4 (tablet & desktop)
+              final int metricColumns = screenWidth < 600 ? 2 : 4;
+              final double metricAspectRatio =
+                  screenWidth < 600 ? 2.6 : (isDesktop ? 2.3 : 2.0);
+
+              // Kolom daftar pengaduan: 1 (mobile) / 2 (tablet) / 3 (desktop)
+              final int reportColumns =
+                  isDesktop ? 3 : (isTablet ? 2 : 1);
+
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1300),
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: isDesktop ? 24 : 14, vertical: 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pusat Kontrol Pengaduan',
+                          style: TextStyle(
+                              fontSize: isDesktop ? 24 : 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Kelola dan pantau pengaduan & foto siswa secara real-time.',
+                          style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: isDesktop ? 13 : 11),
+                        ),
+                        const SizedBox(height: 16),
+                        // Grid Kartu Statistik ATAS - responsif
+                        GridView.count(
+                          crossAxisCount: metricColumns,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          childAspectRatio: metricAspectRatio,
+                          children: [
+                            _buildMetricCard('Total', '$totalLaporan',
+                                Icons.folder_shared, Colors.blue, 'Semua',
+                                isDesktop),
+                            _buildMetricCard('Terkirim', '$totalTerkirim',
+                                Icons.hourglass_top, Colors.orange,
+                                'Terkirim', isDesktop),
+                            _buildMetricCard('Diproses', '$totalDiproses',
+                                Icons.sync, Colors.amber, 'Diproses',
+                                isDesktop),
+                            _buildMetricCard('Selesai', '$totalSelesai',
+                                Icons.check_circle, Colors.teal, 'Selesai',
+                                isDesktop),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        // Filter chip
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
                             children: [
-                              Icon(Icons.inbox_rounded,
-                                  size: 48, color: Colors.grey[700]),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Tidak ada data untuk status "$_selectedFilter".',
-                                style: TextStyle(
-                                    color: Colors.grey[400], fontSize: 12),
-                              ),
+                              _buildFilterChip(
+                                  'Semua', Icons.dashboard_outlined),
+                              const SizedBox(width: 8),
+                              _buildFilterChip('Terkirim', Icons.send_rounded),
+                              const SizedBox(width: 8),
+                              _buildFilterChip(
+                                  'Diproses', Icons.autorenew_rounded),
+                              const SizedBox(width: 8),
+                              _buildFilterChip(
+                                  'Selesai', Icons.verified_rounded),
                             ],
                           ),
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: docs.length,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemBuilder: (context, index) {
-                          final docId = docs[index].id;
-                          final data =
-                              docs[index].data() as Map<String, dynamic>;
-                          final dateStr = _formatDateTime(data['timestamp']);
-                          String status = data['status'] ?? 'Terkirim';
-                          String feedback = data['feedback'] ?? '';
-                          String feedbackFoto = data['feedback_foto'] ?? '';
-
-                          String fotoSiswa = data['image_url'] ??
-                              data['foto_url'] ??
-                              data['imageUrl'] ??
-                              data['foto'] ??
-                              '';
-                          String kategori = data['kategori'] ?? 'Pengaduan';
-
-                          Color statusColor = status == 'Selesai'
-                              ? Colors.teal
-                              : status == 'Diproses'
-                                  ? Colors.amber
-                                  : Colors.orange;
-
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1E293B),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.05)),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(14.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                        const SizedBox(height: 14),
+                        docs.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 30),
+                                  child: Column(
                                     children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: kategori == 'Saran'
-                                              ? Colors.blue
-                                                  .withValues(alpha: 0.15)
-                                              : Colors.deepOrange
-                                                  .withValues(alpha: 0.15),
-                                          borderRadius:
-                                              BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          kategori.toUpperCase(),
-                                          style: TextStyle(
-                                            color: kategori == 'Saran'
-                                                ? Colors.blue[300]
-                                                : Colors.orange[300],
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 9,
-                                          ),
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: statusColor.withValues(
-                                              alpha: 0.15),
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                          border: Border.all(
-                                              color: statusColor.withValues(
-                                                  alpha: 0.3)),
-                                        ),
-                                        child: Text(
-                                          status.toUpperCase(),
-                                          style: TextStyle(
-                                            color: statusColor,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 9,
-                                          ),
-                                        ),
+                                      Icon(Icons.inbox_rounded,
+                                          size: 48, color: Colors.grey[700]),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Tidak ada data untuk status "$_selectedFilter".',
+                                        style: TextStyle(
+                                            color: Colors.grey[400],
+                                            fontSize: 12),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Oleh: ${data['nama'] ?? 'Siswa'} (${data['nis'] ?? '-'})',
-                                    style: TextStyle(
-                                        color: Colors.grey[400], fontSize: 11),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 8),
-                                    child: Divider(
-                                        color: Color(0xFF334155), height: 1),
-                                  ),
-                                  Text(
-                                    data['judul'] ?? 'Tanpa Judul',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                ),
+                              )
+                            : reportColumns == 1
+                                // Mobile: tetap list ke bawah
+                                ? ListView.builder(
+                                    itemCount: docs.length,
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    itemBuilder: (context, index) {
+                                      final docId = docs[index].id;
+                                      final data = docs[index].data()
+                                          as Map<String, dynamic>;
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                            bottom: 12),
+                                        child: _buildReportCard(
+                                            context, docId, data, isDesktop),
+                                      );
+                                    },
+                                  )
+                                // Tablet/Desktop: grid multi-kolom
+                                : GridView.builder(
+                                    itemCount: docs.length,
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: reportColumns,
+                                      crossAxisSpacing: 12,
+                                      mainAxisSpacing: 12,
+                                      childAspectRatio: isDesktop ? 0.78 : 0.85,
                                     ),
+                                    itemBuilder: (context, index) {
+                                      final docId = docs[index].id;
+                                      final data = docs[index].data()
+                                          as Map<String, dynamic>;
+                                      return _buildReportCard(
+                                          context, docId, data, isDesktop);
+                                    },
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    data['isi'] ?? '',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[300],
-                                        height: 1.3),
-                                  ),
-                                  if (fotoSiswa.isNotEmpty) ...[
-                                    const SizedBox(height: 10),
-                                    InkWell(
-                                      onTap: () => _showImageDialog(context,
-                                          fotoSiswa, 'Lampiran Foto Siswa'),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF0F172A),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          border:
-                                              Border.all(color: Colors.white12),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            const Icon(Icons.image,
-                                                color: Color(0xFF38BDF8),
-                                                size: 18),
-                                            const SizedBox(width: 8),
-                                            const Expanded(
-                                              child: Text(
-                                                  'Siswa melampirkan foto. Ketuk untuk melihat.',
-                                                  style: TextStyle(
-                                                      color: Colors.white70,
-                                                      fontSize: 11)),
-                                            ),
-                                            const Icon(Icons.open_in_new,
-                                                color: Colors.grey, size: 14),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    dateStr,
-                                    style: TextStyle(
-                                        color: Colors.grey[500], fontSize: 10),
-                                  ),
-                                  if (feedback.isNotEmpty ||
-                                      feedbackFoto.isNotEmpty) ...[
-                                    const SizedBox(height: 8),
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF0F172A),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                            color: const Color(0xFF38BDF8)
-                                                .withValues(alpha: 0.2)),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'Tanggapan Admin:',
-                                            style: TextStyle(
-                                                color: Color(0xFF38BDF8),
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 10),
-                                          ),
-                                          if (feedback.isNotEmpty) ...[
-                                            const SizedBox(height: 2),
-                                            Text(feedback,
-                                                style: const TextStyle(
-                                                    color: Colors.white70,
-                                                    fontSize: 11)),
-                                          ],
-                                          if (feedbackFoto.isNotEmpty) ...[
-                                            const SizedBox(height: 6),
-                                            InkWell(
-                                              onTap: () => _showImageDialog(
-                                                  context,
-                                                  feedbackFoto,
-                                                  'Foto Balasan Admin'),
-                                              child: Row(
-                                                children: [
-                                                  const Icon(
-                                                      Icons.photo_camera_back,
-                                                      color: Colors.tealAccent,
-                                                      size: 14),
-                                                  const SizedBox(width: 6),
-                                                  const Text(
-                                                      'Lihat Foto Balasan / Koreksi Admin',
-                                                      style: TextStyle(
-                                                          color:
-                                                              Colors.tealAccent,
-                                                          fontSize: 11,
-                                                          decoration:
-                                                              TextDecoration
-                                                                  .underline)),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                  const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 8),
-                                    child: Divider(
-                                        color: Color(0xFF334155), height: 1),
-                                  ),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      SizedBox(
-                                        height: 32,
-                                        child: OutlinedButton.icon(
-                                          onPressed: () => _kirimFeedbackDialog(
-                                              docId,
-                                              feedback,
-                                              feedbackFoto,
-                                              context),
-                                          icon: const Icon(
-                                              Icons.chat_bubble_outline_rounded,
-                                              size: 13,
-                                              color: Color(0xFF38BDF8)),
-                                          label: Text(
-                                              (feedback.isEmpty &&
-                                                      feedbackFoto.isEmpty)
-                                                  ? 'Beri Tanggapan & Foto'
-                                                  : 'Edit Tanggapan / Foto',
-                                              style: const TextStyle(
-                                                  color: Color(0xFF38BDF8),
-                                                  fontSize: 11)),
-                                          style: OutlinedButton.styleFrom(
-                                            side: BorderSide(
-                                                color: const Color(0xFF38BDF8)
-                                                    .withValues(alpha: 0.4)),
-                                            shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(6)),
-                                            padding: EdgeInsets.zero,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      SingleChildScrollView(
-                                        scrollDirection: Axis.horizontal,
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Text('Status:',
-                                                style: TextStyle(
-                                                    color: Colors.grey,
-                                                    fontSize: 10)),
-                                            const SizedBox(width: 4),
-                                            _buildStatusActionButton(
-                                                docId,
-                                                'Terkirim',
-                                                status == 'Terkirim',
-                                                Colors.orange,
-                                                context),
-                                            const SizedBox(width: 3),
-                                            _buildStatusActionButton(
-                                                docId,
-                                                'Diproses',
-                                                status == 'Diproses',
-                                                Colors.amber,
-                                                context),
-                                            const SizedBox(width: 3),
-                                            _buildStatusActionButton(
-                                                docId,
-                                                'Selesai',
-                                                status == 'Selesai',
-                                                Colors.teal,
-                                                context),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ],
-            ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           );
         },
+      ),
+    );
+  }
+
+  // ==============================================================
+  // KARTU LAPORAN PENGADUAN (dipakai di ListView & GridView)
+  // ==============================================================
+  Widget _buildReportCard(BuildContext context, String docId,
+      Map<String, dynamic> data, bool isDesktop) {
+    final dateStr = _formatDateTime(data['timestamp']);
+    String status = data['status'] ?? 'Terkirim';
+    String feedback = data['feedback'] ?? '';
+    String feedbackFoto = data['feedback_foto'] ?? '';
+
+    String fotoSiswa = data['image_url'] ??
+        data['foto_url'] ??
+        data['imageUrl'] ??
+        data['foto'] ??
+        '';
+    String kategori = data['kategori'] ?? 'Pengaduan';
+
+    Color statusColor = status == 'Selesai'
+        ? Colors.teal
+        : status == 'Diproses'
+            ? Colors.amber
+            : Colors.orange;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(14.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: kategori == 'Saran'
+                        ? Colors.blue.withValues(alpha: 0.15)
+                        : Colors.deepOrange.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    kategori.toUpperCase(),
+                    style: TextStyle(
+                      color: kategori == 'Saran'
+                          ? Colors.blue[300]
+                          : Colors.orange[300],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 9,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border:
+                        Border.all(color: statusColor.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    status.toUpperCase(),
+                    style: TextStyle(
+                      color: statusColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 9,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Oleh: ${data['nama'] ?? 'Siswa'} (${data['nis'] ?? '-'})',
+              style: TextStyle(color: Colors.grey[400], fontSize: 11),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Divider(color: Color(0xFF334155), height: 1),
+            ),
+            Text(
+              data['judul'] ?? 'Tanpa Judul',
+              style: TextStyle(
+                fontSize: isDesktop ? 15 : 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              data['isi'] ?? '',
+              style: TextStyle(
+                  fontSize: 12, color: Colors.grey[300], height: 1.3),
+            ),
+            if (fotoSiswa.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              InkWell(
+                onTap: () =>
+                    _showImageDialog(context, fotoSiswa, 'Lampiran Foto Siswa'),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.image,
+                          color: Color(0xFF38BDF8), size: 18),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                            'Siswa melampirkan foto. Ketuk untuk melihat.',
+                            style: TextStyle(
+                                color: Colors.white70, fontSize: 11)),
+                      ),
+                      const Icon(Icons.open_in_new,
+                          color: Colors.grey, size: 14),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Text(
+              dateStr,
+              style: TextStyle(color: Colors.grey[500], fontSize: 10),
+            ),
+            if (feedback.isNotEmpty || feedbackFoto.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: const Color(0xFF38BDF8).withValues(alpha: 0.2)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Tanggapan Admin:',
+                      style: TextStyle(
+                          color: Color(0xFF38BDF8),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10),
+                    ),
+                    if (feedback.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(feedback,
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 11)),
+                    ],
+                    if (feedbackFoto.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: () => _showImageDialog(
+                            context, feedbackFoto, 'Foto Balasan Admin'),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.photo_camera_back,
+                                color: Colors.tealAccent, size: 14),
+                            const SizedBox(width: 6),
+                            const Text('Lihat Foto Balasan / Koreksi Admin',
+                                style: TextStyle(
+                                    color: Colors.tealAccent,
+                                    fontSize: 11,
+                                    decoration: TextDecoration.underline)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Divider(color: Color(0xFF334155), height: 1),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  height: 32,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _kirimFeedbackDialog(
+                        docId, feedback, feedbackFoto, context),
+                    icon: const Icon(Icons.chat_bubble_outline_rounded,
+                        size: 13, color: Color(0xFF38BDF8)),
+                    label: Text(
+                        (feedback.isEmpty && feedbackFoto.isEmpty)
+                            ? 'Beri Tanggapan & Foto'
+                            : 'Edit Tanggapan / Foto',
+                        style: const TextStyle(
+                            color: Color(0xFF38BDF8), fontSize: 11)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                          color: const Color(0xFF38BDF8)
+                              .withValues(alpha: 0.4)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6)),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Status:',
+                          style: TextStyle(color: Colors.grey, fontSize: 10)),
+                      const SizedBox(width: 4),
+                      _buildStatusActionButton(docId, 'Terkirim',
+                          status == 'Terkirim', Colors.orange, context),
+                      const SizedBox(width: 3),
+                      _buildStatusActionButton(docId, 'Diproses',
+                          status == 'Diproses', Colors.amber, context),
+                      const SizedBox(width: 3),
+                      _buildStatusActionButton(docId, 'Selesai',
+                          status == 'Selesai', Colors.teal, context),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1132,7 +1152,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Widget _buildMetricCard(String title, String count, IconData icon,
-      Color color, String targetFilter) {
+      Color color, String targetFilter, bool isDesktop) {
     bool isSelected = _selectedFilter == targetFilter;
     return InkWell(
       onTap: () {
@@ -1140,7 +1160,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       },
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         decoration: BoxDecoration(
           color: isSelected
               ? color.withValues(alpha: 0.2)
@@ -1154,12 +1174,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: EdgeInsets.all(isDesktop ? 8 : 6),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Icon(icon, color: color, size: 14),
+              child: Icon(icon, color: color, size: isDesktop ? 18 : 14),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -1170,17 +1190,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   Text(title,
                       style: TextStyle(
                           color: isSelected ? Colors.white : Colors.grey[400],
-                          fontSize: 9,
+                          fontSize: isDesktop ? 11 : 9,
                           fontWeight:
                               isSelected ? FontWeight.bold : FontWeight.normal),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 1),
                   Text(count,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 13),
+                          fontSize: isDesktop ? 17 : 13),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                 ],
