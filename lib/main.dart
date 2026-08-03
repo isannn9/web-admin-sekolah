@@ -1,10 +1,13 @@
-import 'package:flutter/material.dart';
+Import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import 'dart:convert';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -640,6 +643,168 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return 'Baru saja';
   }
 
+  // ==========================================================
+  // FITUR REKAP DAN CETAK PDF (MINGGUAN, BULANAN, SEMUA)
+  // ==========================================================
+  void _showCetakDialog(List<QueryDocumentSnapshot> allDocs) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E293B),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.print_rounded, color: Color(0xFF38BDF8), size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Cetak Rekap Laporan',
+                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Pilih jenis periode laporan yang ingin dicetak atau diunduh ke PDF:',
+            style: TextStyle(color: Colors.grey, fontSize: 12),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF38BDF8),
+                    foregroundColor: const Color(0xFF0F172A),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _generateAndPrintPdf('Semua Laporan', allDocs);
+                  },
+                  icon: const Icon(Icons.all_inclusive, size: 16),
+                  label: const Text('Cetak Semua Laporan', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: const Color(0xFF0F172A),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    final filtered = allDocs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final ts = data['timestamp'];
+                      if (ts is Timestamp) {
+                        final dt = ts.toDate();
+                        final diff = DateTime.now().difference(dt).inDays;
+                        return diff <= 7;
+                      }
+                      return false;
+                    }).toList();
+                    _generateAndPrintPdf('Laporan Per Minggu (7 Hari Terakhir)', filtered);
+                  },
+                  icon: const Icon(Icons.date_range, size: 16),
+                  label: const Text('Cetak Laporan Per Minggu', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.tealAccent,
+                    foregroundColor: const Color(0xFF0F172A),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    final filtered = allDocs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final ts = data['timestamp'];
+                      if (ts is Timestamp) {
+                        final dt = ts.toDate();
+                        final now = DateTime.now();
+                        return dt.month == now.month && dt.year == now.year;
+                      }
+                      return false;
+                    }).toList();
+                    _generateAndPrintPdf('Laporan Per Bulan (Bulan Ini)', filtered);
+                  },
+                  icon: const Icon(Icons.calendar_month, size: 16),
+                  label: const Text('Cetak Laporan Per Bulan', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            )
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _generateAndPrintPdf(String titleReport, List<QueryDocumentSnapshot> docs) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) {
+          return [
+            pw.Header(
+              level: 0,
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('REKAPITULASI PENGADUAN SEKOLAH',
+                          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 4),
+                      pw.Text(titleReport, style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+                    ],
+                  ),
+                  pw.Text('Dicetak: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+                      style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 16),
+            pw.Table.fromTextArray(
+              headers: ['No', 'Tanggal', 'Pelapor (NIS)', 'Kategori', 'Judul & Isi', 'Status'],
+              data: List.generate(docs.length, (index) {
+                final data = docs[index].data() as Map<String, dynamic>;
+                final dateStr = _formatDateTime(data['timestamp']);
+                return [
+                  '${index + 1}',
+                  dateStr,
+                  '${data['nama'] ?? '-'} (${data['nis'] ?? '-'})',
+                  data['kategori'] ?? 'Pengaduan',
+                  '${data['judul'] ?? '-'}\n${data['isi'] ?? ''}',
+                  data['status'] ?? 'Terkirim',
+                ];
+              }),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: PdfColors.white),
+              headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF0F172A)),
+              cellStyle: const pw.TextStyle(fontSize: 9),
+              cellAlignment: pw.Alignment.centerLeft,
+              columnWidths: {
+                0: const pw.FixedColumnWidth(25),
+                1: const pw.FixedColumnWidth(80),
+                2: const pw.FixedColumnWidth(90),
+                3: const pw.FixedColumnWidth(65),
+                4: const pw.FlexColumnWidth(),
+                5: const pw.FixedColumnWidth(55),
+              },
+            ),
+          ];
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'Rekap_Laporan_Sekolah.pdf',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -725,21 +890,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
             return status.toLowerCase() == _selectedFilter.toLowerCase();
           }).toList();
 
-          // ==========================================================
-          // RESPONSIVE: tentukan ukuran layar sekali di sini
-          // ==========================================================
           return LayoutBuilder(
             builder: (context, constraints) {
               final double screenWidth = constraints.maxWidth;
               final bool isDesktop = screenWidth >= 900;
               final bool isTablet = screenWidth >= 600 && screenWidth < 900;
 
-              // Kolom kartu statistik: 2 (mobile) / 4 (tablet & desktop)
               final int metricColumns = screenWidth < 600 ? 2 : 4;
               final double metricAspectRatio =
                   screenWidth < 600 ? 2.6 : (isDesktop ? 2.3 : 2.0);
 
-              // Kolom daftar pengaduan: 1 (mobile) / 2 (tablet) / 3 (desktop)
               final int reportColumns =
                   isDesktop ? 3 : (isTablet ? 2 : 1);
 
@@ -752,22 +912,44 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Pusat Kontrol Pengaduan',
-                          style: TextStyle(
-                              fontSize: isDesktop ? 24 : 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Kelola dan pantau pengaduan & foto siswa secara real-time.',
-                          style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: isDesktop ? 13 : 11),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Pusat Kontrol Pengaduan',
+                                    style: TextStyle(
+                                        fontSize: isDesktop ? 24 : 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Kelola dan pantau pengaduan & foto siswa secara real-time.',
+                                    style: TextStyle(
+                                        color: Colors.grey[400],
+                                        fontSize: isDesktop ? 13 : 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF38BDF8),
+                                foregroundColor: const Color(0xFF0F172A),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              ),
+                              onPressed: () => _showCetakDialog(allDocs),
+                              icon: const Icon(Icons.print_rounded, size: 16),
+                              label: const Text('Cetak Laporan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 16),
-                        // Grid Kartu Statistik ATAS - responsif
                         GridView.count(
                           crossAxisCount: metricColumns,
                           crossAxisSpacing: 10,
@@ -791,7 +973,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           ],
                         ),
                         const SizedBox(height: 14),
-                        // Filter chip
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: Row(
@@ -831,7 +1012,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 ),
                               )
                             : reportColumns == 1
-                                // Mobile: tetap list ke bawah
                                 ? ListView.builder(
                                     itemCount: docs.length,
                                     shrinkWrap: true,
@@ -849,7 +1029,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                       );
                                     },
                                   )
-                                // Tablet/Desktop: grid multi-kolom
                                 : GridView.builder(
                                     itemCount: docs.length,
                                     shrinkWrap: true,
@@ -882,9 +1061,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  // ==============================================================
-  // KARTU LAPORAN PENGADUAN (dipakai di ListView & GridView)
-  // ==============================================================
   Widget _buildReportCard(BuildContext context, String docId,
       Map<String, dynamic> data, bool isDesktop) {
     final dateStr = _formatDateTime(data['timestamp']);
