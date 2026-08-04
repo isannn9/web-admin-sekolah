@@ -254,6 +254,45 @@ class _AdminDashboardState extends State<AdminDashboard> {
   String _selectedFilter = 'Semua';
   String _selectedTimeFilter = 'Semua Waktu';
   String _searchQuery = '';
+  
+  // Variabel penanda untuk fitur notifikasi pengaduan baru
+  int? _previousTotalCount;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestBrowserNotificationPermission();
+  }
+
+  // Meminta izin browser untuk menampilkan Push Notification
+  void _requestBrowserNotificationPermission() async {
+    if (html.Notification.supported) {
+      if (html.Notification.permission != 'granted') {
+        await html.Notification.requestPermission();
+      }
+    }
+  }
+
+  // Fungsi penampil Notifikasi (SnackBar & Browser Notification)
+  void _triggerNewComplaintNotification(String namaSiswa, String judulPengaduan) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('📢 Pengaduan Baru dari $namaSiswa: "$judulPengaduan"'),
+          backgroundColor: Colors.blue[800],
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+
+    if (html.Notification.supported && html.Notification.permission == 'granted') {
+      html.Notification(
+        'Pengaduan Sekolah Baru!',
+        body: 'Dari: $namaSiswa\nIsi: $judulPengaduan',
+      );
+    }
+  }
 
   void _updateStatus(String docId, String statusBaru, BuildContext context) async {
     try {
@@ -576,9 +615,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return 'Baru saja';
   }
 
-  // ==========================================================
-  // FITUR CETAK LAPORAN MENGGUNAKAN BROWSER PRINT (AMAN TANPA ERROR)
-  // ==========================================================
   void _showCetakDialog(List<QueryDocumentSnapshot> allDocs) {
     showDialog(
       context: context,
@@ -813,6 +849,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
           }
 
           final allDocs = snapshot.hasData ? snapshot.data!.docs : <QueryDocumentSnapshot>[];
+          int currentTotalCount = allDocs.length;
+
+          // LOGIKA PENDETEKSI PENGADUAN BARU MASUK
+          if (_previousTotalCount != null && currentTotalCount > _previousTotalCount!) {
+            final latestData = allDocs.first.data() as Map<String, dynamic>;
+            final String namaSiswa = latestData['nama'] ?? 'Siswa';
+            final String judulPengaduan = latestData['judul'] ?? 'Tanpa Judul';
+
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _triggerNewComplaintNotification(namaSiswa, judulPengaduan);
+            });
+          }
+          _previousTotalCount = currentTotalCount;
 
           int totalLaporan = allDocs.length;
           int totalTerkirim = allDocs
@@ -821,15 +870,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
           int totalDiproses = allDocs.where((d) => (d.data() as Map)['status'] == 'Diproses').length;
           int totalSelesai = allDocs.where((d) => (d.data() as Map)['status'] == 'Selesai').length;
 
-          // Filter Berdasarkan Status (Semua / Terkirim / Diproses / Selesai) & Waktu & Search (NIS/Nama)
           final docs = allDocs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
             String status = data['status'] ?? 'Terkirim';
             
-            // 1. Filter Status Utama dari Kotak Metrik
             bool matchStatus = (_selectedFilter == 'Semua') || (status.toLowerCase() == _selectedFilter.toLowerCase());
 
-            // 2. Filter Waktu (Semua Waktu, Hari Ini, Minggu Ini, Bulan Ini)
             bool matchTime = true;
             final ts = data['timestamp'];
             if (_selectedTimeFilter != 'Semua Waktu' && ts is Timestamp) {
@@ -847,7 +893,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
               matchTime = false;
             }
 
-            // 3. Filter Pencarian NIS atau Nama Siswa
             bool matchSearch = true;
             if (_searchQuery.isNotEmpty) {
               final nama = (data['nama'] ?? '').toString().toLowerCase();
@@ -878,7 +923,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // KOTAK METRIK UTAMA (Mirip Referensi Gambar Teman)
                         GridView.count(
                           crossAxisCount: metricColumns,
                           crossAxisSpacing: 10,
@@ -894,8 +938,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           ],
                         ),
                         const SizedBox(height: 16),
-
-                        // CONTAINER FILTER WAKTU & CETAK LAPORAN
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
@@ -937,8 +979,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           ),
                         ),
                         const SizedBox(height: 14),
-
-                        // KOTAK PENCARIAN BERDASARKAN NIS ATAU NAMA SISWA
                         TextField(
                           style: const TextStyle(color: Colors.white, fontSize: 13),
                           onChanged: (val) {
@@ -964,7 +1004,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           ),
                         ),
                         const SizedBox(height: 14),
-
                         docs.isEmpty
                             ? Center(
                                 child: Padding(
