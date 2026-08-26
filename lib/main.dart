@@ -8,19 +8,19 @@ import 'dart:convert';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
+const FirebaseOptions _firebaseOptions = FirebaseOptions(
+  apiKey: "AIzaSyAmAtZPBbnqOxECg-ZHZEvaG-mIjxmRcpY",
+  authDomain: "pengduanapp.firebaseapp.com",
+  projectId: "pengduanapp",
+  storageBucket: "pengduanapp.firebasestorage.app",
+  messagingSenderId: "326496900877",
+  appId: "1:326496900877:web:553f4c755a7790405b0244",
+  measurementId: "G-TXB47FDPZB",
+);
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: const FirebaseOptions(
-      apiKey: "AIzaSyAmAtZPBbnqOxECg-ZHZEvaG-mIjxmRcpY",
-      authDomain: "pengduanapp.firebaseapp.com",
-      projectId: "pengduanapp",
-      storageBucket: "pengduanapp.firebasestorage.app",
-      messagingSenderId: "326496900877",
-      appId: "1:326496900877:web:553f4c755a7790405b0244",
-      measurementId: "G-TXB47FDPZB",
-    ),
-  );
+  await Firebase.initializeApp(options: _firebaseOptions);
   runApp(const AdminApp());
 }
 
@@ -236,6 +236,489 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// =========================================================================
+// HALAMAN KELOLA PETUGAS
+// =========================================================================
+class AdminPetugasPage extends StatefulWidget {
+  const AdminPetugasPage({super.key});
+
+  @override
+  State<AdminPetugasPage> createState() => _AdminPetugasPageState();
+}
+
+class _AdminPetugasPageState extends State<AdminPetugasPage> {
+  bool _isLoading = false;
+
+  CollectionReference<Map<String, dynamic>> get _petugasCollection =>
+      FirebaseFirestore.instance.collection('petugas');
+
+  String _emailAuthFromUsername(String username) =>
+      '${username.trim().toLowerCase()}@petugas.pengaduanapp.com';
+
+  Future<FirebaseAuth> _getSecondaryAuth() async {
+    const appName = 'petugasCreator';
+    FirebaseApp secondaryApp;
+    try {
+      secondaryApp = Firebase.app(appName);
+    } catch (_) {
+      secondaryApp = await Firebase.initializeApp(
+        name: appName,
+        options: _firebaseOptions,
+      );
+    }
+    return FirebaseAuth.instanceFor(app: secondaryApp);
+  }
+
+  Future<void> _tambahPetugas() async {
+    final formKey = GlobalKey<FormState>();
+    final idController = TextEditingController();
+    final namaController = TextEditingController();
+    final usernameController = TextEditingController();
+    final passwordController = TextEditingController();
+    final tugasController = TextEditingController();
+    bool obscure = true;
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1E293B),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Row(
+                children: [
+                  Icon(Icons.person_add_alt_1_rounded, color: Color(0xFF38BDF8)),
+                  SizedBox(width: 8),
+                  Text('Tambah Petugas', style: TextStyle(color: Colors.white, fontSize: 16)),
+                ],
+              ),
+              content: SizedBox(
+                width: 420,
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      children: [
+                        _petugasField(idController, 'ID Petugas', Icons.badge_outlined),
+                        const SizedBox(height: 10),
+                        _petugasField(namaController, 'Nama Petugas', Icons.person_outline),
+                        const SizedBox(height: 10),
+                        _petugasField(
+                          usernameController,
+                          'Username',
+                          Icons.account_circle_outlined,
+                          validator: (v) {
+                            final value = v?.trim() ?? '';
+                            if (value.isEmpty) return 'Username wajib diisi';
+                            if (!RegExp(r'^[a-zA-Z0-9._-]+$').hasMatch(value)) {
+                              return 'Gunakan huruf, angka, titik, _ atau -';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: passwordController,
+                          obscureText: obscure,
+                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                          decoration: _petugasDecoration('Password', Icons.lock_outline).copyWith(
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                obscure ? Icons.visibility_off : Icons.visibility,
+                                color: Colors.grey,
+                                size: 20,
+                              ),
+                              onPressed: () => setDialogState(() => obscure = !obscure),
+                            ),
+                          ),
+                          validator: (v) {
+                            if ((v ?? '').length < 6) return 'Password minimal 6 karakter';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        _petugasField(tugasController, 'Tugas', Icons.assignment_outlined, maxLines: 2),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _isLoading
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setState(() => _isLoading = true);
+                          try {
+                            final id = idController.text.trim();
+                            final username = usernameController.text.trim().toLowerCase();
+                            final existing = await _petugasCollection.doc(id).get();
+                            if (existing.exists) {
+                              throw Exception('ID Petugas sudah digunakan.');
+                            }
+
+                            final usernameQuery = await _petugasCollection
+                                .where('username', isEqualTo: username)
+                                .limit(1)
+                                .get();
+                            if (usernameQuery.docs.isNotEmpty) {
+                              throw Exception('Username sudah digunakan.');
+                            }
+
+                            final secondaryAuth = await _getSecondaryAuth();
+                            final credential = await secondaryAuth.createUserWithEmailAndPassword(
+                              email: _emailAuthFromUsername(username),
+                              password: passwordController.text,
+                            );
+
+                            await _petugasCollection.doc(id).set({
+                              'idPetugas': id,
+                              'nama': namaController.text.trim(),
+                              'username': username,
+                              'tugas': tugasController.text.trim(),
+                              'emailAuth': _emailAuthFromUsername(username),
+                              'uid': credential.user?.uid,
+                              'role': 'petugas',
+                              'createdAt': FieldValue.serverTimestamp(),
+                              'updatedAt': FieldValue.serverTimestamp(),
+                            });
+
+                            await secondaryAuth.signOut();
+                            if (dialogContext.mounted) Navigator.pop(dialogContext);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Petugas berhasil ditambahkan.'),
+                                  backgroundColor: Colors.teal,
+                                ),
+                              );
+                            }
+                          } on FirebaseAuthException catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Gagal membuat akun: ${e.message ?? e.code}'), backgroundColor: Colors.redAccent),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.redAccent),
+                              );
+                            }
+                          } finally {
+                            if (mounted) setState(() => _isLoading = false);
+                          }
+                        },
+                  icon: const Icon(Icons.save_rounded, size: 16),
+                  label: const Text('Simpan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    idController.dispose();
+    namaController.dispose();
+    usernameController.dispose();
+    passwordController.dispose();
+    tugasController.dispose();
+  }
+
+  Future<void> _editPetugas(String docId, Map<String, dynamic> data) async {
+    final formKey = GlobalKey<FormState>();
+    final namaController = TextEditingController(text: data['nama'] ?? '');
+    final usernameController = TextEditingController(text: data['username'] ?? '');
+    final tugasController = TextEditingController(text: data['tugas'] ?? '');
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Edit Petugas', style: TextStyle(color: Colors.white, fontSize: 16)),
+        content: SizedBox(
+          width: 420,
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _petugasField(TextEditingController(text: data['idPetugas'] ?? docId), 'ID Petugas', Icons.badge_outlined, enabled: false),
+                const SizedBox(height: 10),
+                _petugasField(namaController, 'Nama Petugas', Icons.person_outline),
+                const SizedBox(height: 10),
+                _petugasField(
+                  usernameController,
+                  'Username',
+                  Icons.account_circle_outlined,
+                  validator: (v) {
+                    final value = v?.trim() ?? '';
+                    if (value.isEmpty) return 'Username wajib diisi';
+                    if (!RegExp(r'^[a-zA-Z0-9._-]+$').hasMatch(value)) return 'Format username tidak valid';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                _petugasField(tugasController, 'Tugas', Icons.assignment_outlined, maxLines: 2),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              try {
+                final username = usernameController.text.trim().toLowerCase();
+                final oldUsername = (data['username'] ?? '').toString().toLowerCase();
+                if (username != oldUsername) {
+                  final q = await _petugasCollection.where('username', isEqualTo: username).limit(1).get();
+                  if (q.docs.isNotEmpty && q.docs.first.id != docId) throw Exception('Username sudah digunakan.');
+                }
+                await _petugasCollection.doc(docId).update({
+                  'nama': namaController.text.trim(),
+                  'username': username,
+                  'tugas': tugasController.text.trim(),
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Data petugas berhasil diperbarui.'), backgroundColor: Colors.teal),
+                  );
+                }
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.redAccent));
+              }
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+
+    namaController.dispose();
+    usernameController.dispose();
+    tugasController.dispose();
+  }
+
+  Future<void> _hapusPetugas(String docId, Map<String, dynamic> data) async {
+    final yakin = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text('Hapus Petugas?', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Data ${data['nama'] ?? 'petugas'} akan dihapus dari daftar petugas. Akun Firebase Authentication tidak ikut dihapus dari aplikasi client.',
+          style: const TextStyle(color: Colors.grey),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (yakin != true) return;
+
+    try {
+      await _petugasCollection.doc(docId).delete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data petugas berhasil dihapus dari Firestore.'), backgroundColor: Colors.teal),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.redAccent));
+    }
+  }
+
+  InputDecoration _petugasDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+      prefixIcon: Icon(icon, color: const Color(0xFF38BDF8), size: 19),
+      filled: true,
+      fillColor: const Color(0xFF0F172A),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+      contentPadding: const EdgeInsets.symmetric(vertical: 13, horizontal: 10),
+    );
+  }
+
+  Widget _petugasField(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    String? Function(String?)? validator,
+    bool enabled = true,
+    int maxLines = 1,
+  }) {
+    return TextFormField(
+      controller: controller,
+      enabled: enabled,
+      maxLines: maxLines,
+      style: const TextStyle(color: Colors.white, fontSize: 13),
+      decoration: _petugasDecoration(label, icon),
+      validator: validator ?? (v) => (v?.trim().isEmpty ?? true) ? '$label wajib diisi' : null,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F172A),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1E293B),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Row(
+          children: [
+            Icon(Icons.people_alt_rounded, color: Color(0xFF38BDF8), size: 20),
+            SizedBox(width: 8),
+            Text('KELOLA PETUGAS', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: ElevatedButton.icon(
+              onPressed: _isLoading ? null : _tambahPetugas,
+              icon: const Icon(Icons.add, size: 17),
+              label: const Text('Tambah Petugas'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF38BDF8),
+                foregroundColor: const Color(0xFF0F172A),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _petugasCollection.orderBy('createdAt', descending: true).snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF38BDF8)));
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.redAccent)));
+          }
+          final docs = snapshot.data?.docs ?? [];
+          if (docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.people_outline, size: 58, color: Colors.grey[700]),
+                  const SizedBox(height: 10),
+                  Text('Belum ada petugas.', style: TextStyle(color: Colors.grey[400])),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(onPressed: _tambahPetugas, icon: const Icon(Icons.add), label: const Text('Tambah Petugas')),
+                ],
+              ),
+            );
+          }
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final desktop = constraints.maxWidth >= 900;
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1200),
+                  child: ListView.separated(
+                    padding: EdgeInsets.all(desktop ? 24 : 14),
+                    itemCount: docs.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final doc = docs[index];
+                      final data = doc.data();
+                      return Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E293B),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                        ),
+                        child: Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 18,
+                          runSpacing: 12,
+                          children: [
+                            SizedBox(
+                              width: desktop ? 100 : 80,
+                              child: _petugasInfo('ID', data['idPetugas'] ?? doc.id),
+                            ),
+                            SizedBox(
+                              width: desktop ? 180 : 150,
+                              child: _petugasInfo('Nama', data['nama'] ?? '-'),
+                            ),
+                            SizedBox(
+                              width: desktop ? 150 : 130,
+                              child: _petugasInfo('Username', data['username'] ?? '-'),
+                            ),
+                            SizedBox(
+                              width: desktop ? 140 : 120,
+                              child: _petugasInfo('Password', '••••••••'),
+                            ),
+                            SizedBox(
+                              width: desktop ? 240 : 180,
+                              child: _petugasInfo('Tugas', data['tugas'] ?? '-'),
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Edit',
+                                  onPressed: () => _editPetugas(doc.id, data),
+                                  icon: const Icon(Icons.edit_rounded, color: Color(0xFF38BDF8), size: 19),
+                                ),
+                                IconButton(
+                                  tooltip: 'Hapus',
+                                  onPressed: () => _hapusPetugas(doc.id, data),
+                                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 19),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _petugasInfo(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 9)),
+        const SizedBox(height: 3),
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600), maxLines: 2, overflow: TextOverflow.ellipsis),
+      ],
     );
   }
 }
@@ -824,6 +1307,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.people_alt_rounded, color: Color(0xFF38BDF8), size: 20),
+            tooltip: 'Kelola Petugas',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AdminPetugasPage()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
             tooltip: 'Keluar',
