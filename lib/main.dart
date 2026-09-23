@@ -1205,6 +1205,58 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   icon: const Icon(Icons.calendar_month, size: 16),
                   label: const Text('Cetak Laporan Per Bulan', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purpleAccent,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    final now = DateTime.now();
+                    final range = await showDateRangePicker(
+                      context: context,
+                      firstDate: DateTime(now.year - 2),
+                      lastDate: DateTime(now.year + 1),
+                      initialDateRange: DateTimeRange(
+                        start: now.subtract(const Duration(days: 7)),
+                        end: now,
+                      ),
+                      builder: (context, child) {
+                        return Theme(
+                          data: ThemeData.dark().copyWith(
+                            colorScheme: const ColorScheme.dark(
+                              primary: Color(0xFF38BDF8),
+                              onPrimary: Colors.white,
+                              surface: Color(0xFF1E293B),
+                              onSurface: Colors.white,
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (range == null) return;
+                    if (!mounted) return;
+                    final start = DateTime(range.start.year, range.start.month, range.start.day);
+                    final end = DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59);
+                    final filtered = allDocs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final ts = data['timestamp'];
+                      if (ts is Timestamp) {
+                        final dt = ts.toDate();
+                        return (dt.isAtSameMomentAs(start) || dt.isAfter(start)) &&
+                            (dt.isAtSameMomentAs(end) || dt.isBefore(end));
+                      }
+                      return false;
+                    }).toList();
+                    final rangeLabel =
+                        '${start.day}/${start.month}/${start.year} - ${end.day}/${end.month}/${end.year}';
+                    _printHtmlReport('Laporan Custom ($rangeLabel)', filtered);
+                  },
+                  icon: const Icon(Icons.edit_calendar, size: 16),
+                  label: const Text('Cetak Custom (Pilih Tanggal)', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
               ],
             )
           ],
@@ -1230,23 +1282,37 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ''';
     }
 
+    final now = DateTime.now();
+    final tanggalCetak = '${now.day}/${now.month}/${now.year}';
+
     String htmlContent = '''
       <html>
         <head>
           <title>$title</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
-            h2 { margin-bottom: 5px; }
-            p { color: #666; font-size: 12px; margin-top: 0; }
+            .kop { text-align: center; border-bottom: 3px solid #0F172A; padding-bottom: 10px; margin-bottom: 10px; }
+            .kop h1 { margin: 0; font-size: 20px; letter-spacing: 1px; color: #0F172A; }
+            .kop p { margin: 2px 0 0 0; font-size: 11px; color: #666; }
+            h2 { margin-bottom: 5px; text-align: center; }
+            p.subjudul { color: #666; font-size: 12px; margin-top: 0; text-align: center; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             th, td { border: 1px solid #ddd; padding: 8px 12px; font-size: 12px; text-align: left; }
             th { background-color: #0F172A; color: white; }
             tr:nth-child(even) { background-color: #f9f9f9; }
+            .ttd-wrap { width: 100%; margin-top: 50px; overflow: auto; }
+            .ttd-box { float: right; width: 260px; text-align: center; font-size: 12px; }
+            .ttd-nama { margin-top: 70px; margin-bottom: 0; font-weight: bold; text-decoration: underline; }
+            .ttd-jabatan { margin-top: 2px; }
           </style>
         </head>
         <body>
+          <div class="kop">
+            <h1>SMK NEGERI 1 SEWON</h1>
+            <p>Sistem Pengaduan Sekolah</p>
+          </div>
           <h2>REKAPITULASI PENGADUAN SEKOLAH</h2>
-          <p>$title | Dicetak pada: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}</p>
+          <p class="subjudul">$title | Dicetak pada: $tanggalCetak</p>
           <table>
             <thead>
               <tr>
@@ -1262,6 +1328,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
               $rows
             </tbody>
           </table>
+          <div class="ttd-wrap">
+            <div class="ttd-box">
+              <p>Sewon, $tanggalCetak</p>
+              <p style="margin-bottom:0;">Admin,</p>
+              <p class="ttd-nama">Muhammad Ikhsan Saputra</p>
+              <p class="ttd-jabatan">Admin</p>
+            </div>
+          </div>
           <script>
             window.print();
           </script>
