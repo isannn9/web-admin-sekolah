@@ -1330,7 +1330,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           </table>
           <div class="ttd-wrap">
             <div class="ttd-box">
-              <p>Sewon, $tanggalCetak</p>
+              <p>Sewon Bantul Daerah Istimewa Yogyakarta, $tanggalCetak</p>
               <p style="margin-bottom:0;">Admin,</p>
               <p class="ttd-nama">Muhammad Ikhsan Saputra</p>
               <p class="ttd-jabatan">Admin</p>
