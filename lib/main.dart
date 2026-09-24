@@ -1382,6 +1382,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
+            tooltip: 'Rating Aplikasi',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AdminRatingPage()),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.people_alt_rounded, color: Color(0xFF38BDF8), size: 20),
             tooltip: 'Kelola Petugas',
             onPressed: () {
@@ -2266,6 +2276,184 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// =========================================================================
+// HALAMAN RATING APLIKASI (dari koleksi app_ratings)
+// =========================================================================
+class AdminRatingPage extends StatelessWidget {
+  const AdminRatingPage({super.key});
+
+  CollectionReference<Map<String, dynamic>> get _ratingsCollection =>
+      FirebaseFirestore.instance.collection('app_ratings');
+
+  String _formatTanggal(dynamic timestamp) {
+    if (timestamp is Timestamp) {
+      final dt = timestamp.toDate().toLocal();
+      return "${dt.day}-${dt.month}-${dt.year} | ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+    }
+    return '-';
+  }
+
+  Widget _buildStars(int rating, {double size = 16}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(5, (index) {
+        return Icon(
+          index < rating ? Icons.star_rounded : Icons.star_border_rounded,
+          color: Colors.amber,
+          size: size,
+        );
+      }),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F172A),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1E293B),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Row(
+          children: [
+            Icon(Icons.star_rounded, color: Colors.amber, size: 20),
+            SizedBox(width: 8),
+            Text('RATING APLIKASI', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _ratingsCollection.orderBy('updatedAt', descending: true).snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Colors.amber));
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+            );
+          }
+
+          final docs = snapshot.data?.docs ?? [];
+          if (docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.star_outline_rounded, size: 58, color: Colors.grey[700]),
+                  const SizedBox(height: 10),
+                  Text('Belum ada rating dari siswa.', style: TextStyle(color: Colors.grey[400])),
+                ],
+              ),
+            );
+          }
+
+          double totalRating = 0;
+          for (final doc in docs) {
+            final data = doc.data();
+            totalRating += ((data['rating'] as num?)?.toDouble() ?? 0);
+          }
+          final double rataRata = docs.isEmpty ? 0 : (totalRating / docs.length);
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final desktop = constraints.maxWidth >= 900;
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: ListView(
+                    padding: EdgeInsets.all(desktop ? 24 : 14),
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E293B),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              rataRata.toStringAsFixed(1),
+                              style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            _buildStars(rataRata.round(), size: 22),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Rata-rata dari ${docs.length} penilaian siswa',
+                              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: docs.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final data = docs[index].data();
+                          final nama = (data['nama'] ?? 'Siswa').toString();
+                          final nis = (data['nis'] ?? '-').toString();
+                          final rating = (data['rating'] as num?)?.toInt() ?? 0;
+                          final komentar = (data['komentar'] ?? '').toString();
+
+                          return Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E293B),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '$nama ($nis)',
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    _buildStars(rating),
+                                  ],
+                                ),
+                                if (komentar.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    komentar,
+                                    style: TextStyle(color: Colors.grey[300], fontSize: 12, height: 1.3),
+                                  ),
+                                ],
+                                const SizedBox(height: 8),
+                                Text(
+                                  _formatTanggal(data['updatedAt']),
+                                  style: TextStyle(color: Colors.grey[500], fontSize: 10),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
